@@ -1,9 +1,5 @@
-﻿import { prisma } from '@/lib/db'
+import { prisma } from '@/lib/db'
 import Link from 'next/link'
-
-export const dynamic = 'force-dynamic'
-
-
 
 export default async function PublicStandingsPage() {
   const users = await prisma.user.findMany({
@@ -30,24 +26,24 @@ export default async function PublicStandingsPage() {
       <div className="max-w-2xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="text-center mb-10">
-          <span className="text-5xl mb-4 block">Ã¢Å¡Â½</span>
+          <span className="text-5xl mb-4 block"></span>
           <h1 className="font-display font-extrabold text-4xl text-white mb-2">
             Porra <span className="gradient-text">Mundial 2026</span>
           </h1>
-          <p className="text-slate-400">{tournament?.name ?? 'ClasificaciÃƒÂ³n pÃƒÂºblica'} Ã‚Â· {standings.length} participantes</p>
+          <p className="text-slate-400">{tournament?.name ?? 'Clasificacion publica'} - {standings.length} participantes</p>
         </div>
 
         {/* Table */}
         <div className="card overflow-hidden mb-8">
           <div className="p-5 border-b border-white/[0.08]">
-            <h2 className="font-display font-bold text-lg text-white">Ã°Å¸Ââ€  ClasificaciÃƒÂ³n</h2>
+            <h2 className="font-display font-bold text-lg text-white"> Clasificacion</h2>
           </div>
           {standings.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">El torneo aÃƒÂºn no ha comenzado</div>
+            <div className="text-center py-12 text-slate-500">El torneo an no ha comenzado</div>
           ) : (
             <div className="divide-y divide-white/5">
               {standings.map((entry, i) => {
-                const medals: Record<number, string> = { 0: 'Ã°Å¸Â¥â€¡', 1: 'Ã°Å¸Â¥Ë†', 2: 'Ã°Å¸Â¥â€°' }
+                const medals: Record<number, string> = { 0: '', 1: '', 2: '' }
                 return (
                   <div key={entry.username} className="flex items-center gap-4 px-5 py-4">
                     <span className="w-8 text-center text-lg">
@@ -83,7 +79,7 @@ export default async function PublicStandingsPage() {
 
         <div className="text-center">
           <Link href="/login" className="btn-primary inline-flex items-center gap-2">
-            <span>Ã¢Å¡Â¡</span> Unirme a la porra
+            <span></span> Unirme a la porra
           </Link>
         </div>
       </div>

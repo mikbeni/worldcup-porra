@@ -1,7 +1,8 @@
-﻿'use client'
+'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { format } from 'date-fns'
+import { format, formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 const TIER_COLORS: Record<number, string> = {
@@ -28,8 +29,27 @@ const ROUND_LABELS: Record<string, string> = {
 }
 
 export function DashboardClient({ data, userId }: { data: any; userId: string }) {
-  const { user, standings, totalParticipants, recentMatches, tournament } = data
+  const { user, standings, totalParticipants, recentMatches, tournament, locked, firstMatch, nextMatch } = data
   const hasPicks = user.picks?.length > 0
+
+  // Countdown state
+  const [countdown, setCountdown] = useState('')
+  useEffect(() => {
+    const target = nextMatch?.scheduledAt || firstMatch
+    if (!target) return
+    const update = () => {
+      const diff = new Date(target).getTime() - Date.now()
+      if (diff <= 0) { setCountdown('En curso!'); return }
+      const d = Math.floor(diff / 86400000)
+      const h = Math.floor((diff % 86400000) / 3600000)
+      const m = Math.floor((diff % 3600000) / 60000)
+      const s = Math.floor((diff % 60000) / 1000)
+      setCountdown(d > 0 ? `${d}d ${h}h ${m}m` : `${h}h ${m}m ${s}s`)
+    }
+    update()
+    const id = setInterval(update, 1000)
+    return () => clearInterval(id)
+  }, [nextMatch, firstMatch])
 
   return (
     <div className="space-y-8 animate-in">
@@ -54,18 +74,54 @@ export function DashboardClient({ data, userId }: { data: any; userId: string })
             </div>
             {tournament && (
               <p className="text-slate-500 text-sm">
-                âš½ {tournament.name} Â· {format(new Date(tournament.startDate), 'dd MMM', { locale: es })} â€“ {format(new Date(tournament.endDate), 'dd MMM yyyy', { locale: es })}
+                 {tournament.name}  {format(new Date(tournament.startDate), 'dd MMM', { locale: es })}  {format(new Date(tournament.endDate), 'dd MMM yyyy', { locale: es })}
               </p>
             )}
           </div>
           {/* Stats row */}
           <div className="flex gap-4">
-            <StatPill label="Puntos" value={user.totalPoints ?? 0} icon="â­" color="text-gold-400" />
-            <StatPill label="PosiciÃ³n" value={user.rank > 0 ? `#${user.rank}` : 'â€”'} icon="ðŸ†" color="text-pitch-400" />
-            <StatPill label="Equipos" value={user.picks?.length ?? 0} icon="ðŸŽ¯" color="text-blue-400" />
+            <StatPill label="Puntos" value={user.totalPoints ?? 0} icon="" color="text-gold-400" />
+            <StatPill label="Posicion" value={user.rank > 0 ? `#${user.rank}` : ''} icon="" color="text-pitch-400" />
+            <StatPill label="Equipos" value={user.picks?.length ?? 0} icon="" color="text-blue-400" />
           </div>
         </div>
       </div>
+
+      {/* Countdown / CTA banner */}
+      {!hasPicks && !locked && (
+        <div className="card p-5 flex items-center justify-between gap-4 border-gold-500/20 bg-gold-500/5">
+          <div>
+            <p className="font-display font-bold text-white">An no has hecho tus picks!</p>
+            <p className="text-sm text-slate-400 mt-0.5">
+              {firstMatch
+                ? `Se cierran el ${new Date(firstMatch).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
+                : 'Haz tus selecciones antes de que empiece el torneo'}
+            </p>
+          </div>
+          <Link href="/picks" className="btn-gold flex-shrink-0"> Hacer picks</Link>
+        </div>
+      )}
+      {nextMatch && countdown && (
+        <div className="card p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Prximo partido</p>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">{nextMatch.homeTeam?.flagEmoji ?? ''}</span>
+              <span className="text-sm font-bold text-white">{nextMatch.homeTeam?.name ?? 'TBD'}</span>
+              <span className="text-slate-500 text-sm">vs</span>
+              <span className="text-sm font-bold text-white">{nextMatch.awayTeam?.name ?? 'TBD'}</span>
+              <span className="text-2xl">{nextMatch.awayTeam?.flagEmoji ?? ''}</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              {format(new Date(nextMatch.scheduledAt), "EEEE d 'de' MMMM  HH:mm", { locale: es })}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="font-display font-bold text-2xl text-pitch-400 tabular-nums">{countdown}</p>
+            <p className="text-xs text-slate-500">para el pitido</p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column: picks + matches */}
@@ -74,9 +130,9 @@ export function DashboardClient({ data, userId }: { data: any; userId: string })
           <div className="card p-6">
             <div className="flex items-center justify-between mb-5">
               <h2 className="section-title">Mis Selecciones</h2>
-              {!hasPicks && (
+              {!hasPicks && !locked && (
                 <Link href="/picks" className="btn-primary text-sm py-2 px-4">
-                  Â¡Hacer picks!
+                  Hacer picks!
                 </Link>
               )}
             </div>
@@ -104,8 +160,8 @@ export function DashboardClient({ data, userId }: { data: any; userId: string })
               </div>
             ) : (
               <div className="text-center py-12">
-                <div className="text-5xl mb-4">ðŸŽ¯</div>
-                <p className="text-slate-400 mb-4">No has hecho tus selecciones todavÃ­a</p>
+                <div className="text-5xl mb-4"></div>
+                <p className="text-slate-400 mb-4">No has hecho tus selecciones todavia</p>
                 <Link href="/picks" className="btn-primary inline-flex">
                   Hacer mis picks
                 </Link>
@@ -118,11 +174,11 @@ export function DashboardClient({ data, userId }: { data: any; userId: string })
             <div className="flex items-center justify-between mb-5">
               <h2 className="section-title">Partidos Recientes</h2>
               <Link href="/matches" className="text-sm text-pitch-400 hover:text-pitch-300 transition-colors">
-                Ver todos â†’
+                Ver todos 
               </Link>
             </div>
             {recentMatches.length === 0 ? (
-              <p className="text-slate-500 text-sm text-center py-6">No hay partidos aÃºn</p>
+              <p className="text-slate-500 text-sm text-center py-6">No hay partidos an</p>
             ) : (
               <div className="space-y-3">
                 {recentMatches.slice(0, 4).map((match: any) => (
@@ -137,14 +193,14 @@ export function DashboardClient({ data, userId }: { data: any; userId: string })
         <div className="space-y-6">
           <div className="card p-6">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="section-title">ClasificaciÃ³n</h2>
+              <h2 className="section-title">Clasificacion</h2>
               <Link href="/standings" className="text-sm text-pitch-400 hover:text-pitch-300 transition-colors">
-                Ver todo â†’
+                Ver todo 
               </Link>
             </div>
             {standings.length === 0 ? (
               <p className="text-slate-500 text-sm text-center py-6">
-                Nadie tiene puntos todavÃ­a.<br />Â¡Comienza el torneo!
+                Nadie tiene puntos todavia.<br />Comienza el torneo!
               </p>
             ) : (
               <div className="space-y-2">
@@ -158,7 +214,7 @@ export function DashboardClient({ data, userId }: { data: any; userId: string })
                 ))}
                 {totalParticipants > 5 && (
                   <p className="text-xs text-slate-600 text-center pt-2">
-                    +{totalParticipants - 5} participantes mÃ¡s
+                    +{totalParticipants - 5} participantes ms
                   </p>
                 )}
               </div>
@@ -168,14 +224,14 @@ export function DashboardClient({ data, userId }: { data: any; userId: string })
           {/* Quick scoring reference */}
           <div className="card p-5">
             <h3 className="font-display font-bold text-sm text-white mb-3 uppercase tracking-wide">
-              PuntuaciÃ³n por Tier
+              Puntuacion por Tier
             </h3>
             <div className="space-y-2">
               {[
-                { tier: 1, label: 'Favoritos', mult: 'Ã—1.0', win: 3, champion: 50, color: 'text-yellow-400' },
-                { tier: 2, label: 'Fuertes', mult: 'Ã—1.5', win: 4.5, champion: 75, color: 'text-blue-400' },
-                { tier: 3, label: 'Competitivos', mult: 'Ã—2.5', win: 7.5, champion: 125, color: 'text-purple-400' },
-                { tier: 4, label: 'Outsiders', mult: 'Ã—4.0', win: 12, champion: 200, color: 'text-pink-400' },
+                { tier: 1, label: 'Favoritos', mult: '1.0', win: 3, champion: 50, color: 'text-yellow-400' },
+                { tier: 2, label: 'Fuertes', mult: '1.5', win: 4.5, champion: 75, color: 'text-blue-400' },
+                { tier: 3, label: 'Competitivos', mult: '2.5', win: 7.5, champion: 125, color: 'text-purple-400' },
+                { tier: 4, label: 'Outsiders', mult: '3.0', win: 9, champion: 150, color: 'text-pink-400' },
               ].map((t) => (
                 <div key={t.tier} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
                   <div className="flex items-center gap-2">
@@ -183,7 +239,7 @@ export function DashboardClient({ data, userId }: { data: any; userId: string })
                     <span className="text-xs text-slate-400">{t.label}</span>
                   </div>
                   <div className="flex gap-3 text-xs text-slate-500">
-                    <span>ðŸ†{t.champion}pts</span>
+                    <span>{t.champion}pts</span>
                   </div>
                 </div>
               ))}
@@ -234,7 +290,7 @@ function MatchRow({ match }: { match: any }) {
     <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/30 hover:bg-slate-800/50 transition-colors">
       <div className="flex-1 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-lg">{match.homeTeam?.flagEmoji ?? 'ðŸ³ï¸'}</span>
+          <span className="text-lg">{match.homeTeam?.flagEmoji ?? ''}</span>
           <span className="text-sm font-medium text-slate-200 hidden sm:block">{match.homeTeam?.code ?? 'TBD'}</span>
         </div>
         <div className="text-center min-w-[60px]">
@@ -251,7 +307,7 @@ function MatchRow({ match }: { match: any }) {
           )}
         </div>
         <div className="flex items-center gap-2 flex-row-reverse">
-          <span className="text-lg">{match.awayTeam?.flagEmoji ?? 'ðŸ³ï¸'}</span>
+          <span className="text-lg">{match.awayTeam?.flagEmoji ?? ''}</span>
           <span className="text-sm font-medium text-slate-200 hidden sm:block">{match.awayTeam?.code ?? 'TBD'}</span>
         </div>
       </div>
@@ -260,7 +316,7 @@ function MatchRow({ match }: { match: any }) {
 }
 
 function LeaderboardRow({ entry, isMe, position }: { entry: any; isMe: boolean; position: number }) {
-  const medals: Record<number, string> = { 1: 'ðŸ¥‡', 2: 'ðŸ¥ˆ', 3: 'ðŸ¥‰' }
+  const medals: Record<number, string> = { 1: '', 2: '', 3: '' }
   return (
     <div className={`flex items-center gap-3 p-3 rounded-xl transition-colors ${
       isMe ? 'bg-pitch-600/[0.15] border border-pitch-600/30' : 'hover:bg-slate-800/40'
@@ -278,7 +334,7 @@ function LeaderboardRow({ entry, isMe, position }: { entry: any; isMe: boolean; 
         )}
       </div>
       <span className={`flex-1 text-sm font-medium truncate ${isMe ? 'text-pitch-300' : 'text-slate-300'}`}>
-        {entry.username} {isMe && <span className="text-xs text-slate-500">(tÃº)</span>}
+        {entry.username} {isMe && <span className="text-xs text-slate-500">(t)</span>}
       </span>
       <span className={`font-display font-bold text-sm ${isMe ? 'text-gold-400' : 'text-slate-400'}`}>
         {entry.totalPoints}

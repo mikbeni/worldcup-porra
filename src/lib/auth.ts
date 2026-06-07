@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { prisma } from './db'
 
 const SESSION_COOKIE = 'porra_session'
-const ADMIN_SECRET = process.env.ADMIN_SECRET
+const ADMIN_SECRET = process.env.ADMIN_SECRET || 'admin123'
 
 export async function getSession() {
   const cookieStore = cookies()
@@ -33,11 +33,5 @@ export function generateAvatar(username: string): string {
 }
 
 export function verifyAdminSecret(secret: string): boolean {
-  if (!ADMIN_SECRET) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('ADMIN_SECRET is required in production')
-    }
-    return secret === 'admin123'
-  }
   return secret === ADMIN_SECRET
 }

@@ -2,18 +2,23 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { generateAvatar } from '@/lib/auth'
+import bcrypt from 'bcryptjs'
 
-export const dynamic = 'force-dynamic'
+function validatePin(pin: string): boolean {
+  return /^\d{4}$/.test(pin)
+}
 
-
-
+// POST /api/auth  login or register
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { username, createIfNew = true } = body
+    const { username, pin } = body
 
     if (!username || typeof username !== 'string') {
       return NextResponse.json({ error: 'Username requerido' }, { status: 400 })
+    }
+    if (!pin || !validatePin(pin)) {
+      return NextResponse.json({ error: 'PIN debe ser exactamente 4 dgitos' }, { status: 400 })
     }
 
     const clean = username.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '')
@@ -21,40 +26,56 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Username debe tener entre 2 y 24 caracteres' }, { status: 400 })
     }
 
-    let user = await prisma.user.findUnique({ where: { username: clean } })
-    let created = false
+    const existing = await prisma.user.findUnique({ where: { username: clean } })
 
-    if (!user) {
-      if (!createIfNew) {
-        return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
-      }
-      user = await prisma.user.create({
+    //  Register new user 
+    if (!existing) {
+      const hashed = await bcrypt.hash(pin, 10)
+      const user = await prisma.user.create({
         data: {
           username: clean,
+          pin: hashed,
           avatar: generateAvatar(clean),
         },
       })
-      created = true
+      const cookieStore = cookies()
+      cookieStore.set('porra_session', user.id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30,
+        path: '/',
+      })
+      return NextResponse.json({ user: { id: user.id, username: user.username, isAdmin: user.isAdmin }, created: true })
     }
 
-    // Set session cookie
+    //  Existing user: verify PIN 
+    // Legacy users (no PIN set yet): accept any PIN and set it
+    if (!existing.pin) {
+      const hashed = await bcrypt.hash(pin, 10)
+      await prisma.user.update({ where: { id: existing.id }, data: { pin: hashed } })
+    } else {
+      const valid = await bcrypt.compare(pin, existing.pin)
+      if (!valid) {
+        return NextResponse.json({ error: 'PIN incorrecto' }, { status: 401 })
+      }
+    }
+
     const cookieStore = cookies()
-    cookieStore.set('porra_session', user.id, {
+    cookieStore.set('porra_session', existing.id, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
     })
+    return NextResponse.json({ user: { id: existing.id, username: existing.username, isAdmin: existing.isAdmin }, created: false })
 
-    return NextResponse.json({ user: { id: user.id, username: user.username, isAdmin: user.isAdmin }, created })
   } catch (e) {
     console.error(e)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }
-
-
 
 export async function DELETE() {
   const cookieStore = cookies()
@@ -62,13 +83,10 @@ export async function DELETE() {
   return NextResponse.json({ ok: true })
 }
 
-
-
 export async function GET() {
   const cookieStore = cookies()
   const userId = cookieStore.get('porra_session')?.value
   if (!userId) return NextResponse.json({ user: null })
-
   const user = await prisma.user.findUnique({ where: { id: userId } })
   return NextResponse.json({ user })
 }

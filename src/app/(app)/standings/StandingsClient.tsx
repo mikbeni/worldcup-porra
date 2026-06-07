@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
 import {
@@ -22,19 +22,19 @@ export function StandingsClient({ standings, chartData, currentUserId }: {
   const [expandedUser, setExpandedUser] = useState<string | null>(null)
   const users = standings.map((s) => s.username)
 
-  const medals: Record<number, string> = { 1: 'ðŸ¥‡', 2: 'ðŸ¥ˆ', 3: 'ðŸ¥‰' }
+  const medals: Record<number, string> = { 1: '', 2: '', 3: '' }
 
   return (
     <div className="space-y-8 animate-in">
       <div>
-        <h1 className="font-display font-extrabold text-3xl text-white mb-2">ClasificaciÃ³n</h1>
-        <p className="text-slate-400">{standings.length} participantes Â· Mundial 2026</p>
+        <h1 className="font-display font-extrabold text-3xl text-white mb-2">Clasificacion</h1>
+        <p className="text-slate-400">{standings.length} participantes - Mundial 2026</p>
       </div>
 
       {/* Evolution chart */}
       {chartData.length > 0 && (
         <div className="card p-6">
-          <h2 className="section-title mb-5">EvoluciÃ³n de Puntos</h2>
+          <h2 className="section-title mb-5">Evolucion de Puntos</h2>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -72,8 +72,8 @@ export function StandingsClient({ standings, chartData, currentUserId }: {
         </div>
         {standings.length === 0 ? (
           <div className="text-center py-16">
-            <div className="text-5xl mb-4">ðŸ†</div>
-            <p className="text-slate-400">Nadie tiene puntos todavÃ­a.</p>
+            <div className="text-5xl mb-4"></div>
+            <p className="text-slate-400">Nadie tiene puntos todavia.</p>
             <p className="text-slate-500 text-sm mt-1">Los puntos se asignan cuando terminan los partidos.</p>
           </div>
         ) : (
@@ -98,9 +98,7 @@ export function StandingsClient({ standings, chartData, currentUserId }: {
                     </span>
 
                     {/* Avatar */}
-                    <div className={`w-10 h-10 rounded-xl overflow-hidden bg-slate-700 flex-shrink-0 ring-2 ${
-                      isMe ? 'ring-pitch-500' : 'ring-transparent'
-                    }`}>
+                    <div className={`w-10 h-10 rounded-xl overflow-hidden bg-slate-700 flex-shrink-0 ring-2 ${isMe ? 'ring-pitch-500' : 'ring-transparent'}`}>
                       {entry.avatar ? (
                         <img src={entry.avatar} alt={entry.username} className="w-full h-full object-cover" />
                       ) : (
@@ -116,7 +114,7 @@ export function StandingsClient({ standings, chartData, currentUserId }: {
                         <span className={`font-semibold ${isMe ? 'text-pitch-300' : 'text-white'}`}>
                           {entry.username}
                         </span>
-                        {isMe && <span className="text-xs bg-pitch-600/20 text-pitch-400 px-1.5 py-0.5 rounded border border-pitch-600/30">tÃº</span>}
+                        {isMe && <span className="text-xs bg-pitch-600/20 text-pitch-400 px-1.5 py-0.5 rounded border border-pitch-600/30">t</span>}
                       </div>
                       <div className="flex gap-2 mt-0.5">
                         {entry.picks.slice(0, 5).map((p: any) => (
@@ -132,7 +130,7 @@ export function StandingsClient({ standings, chartData, currentUserId }: {
 
                     {/* Week points */}
                     <div className="hidden sm:block text-center px-4">
-                      <div className="text-sm font-bold text-pitch-400">{entry.weekPoints > 0 ? `+${entry.weekPoints}` : 'â€”'}</div>
+                      <div className="text-sm font-bold text-pitch-400">{entry.weekPoints > 0 ? `+${entry.weekPoints}` : ''}</div>
                       <div className="text-xs text-slate-600">esta sem.</div>
                     </div>
 
@@ -146,7 +144,7 @@ export function StandingsClient({ standings, chartData, currentUserId }: {
 
                     {/* Expand icon */}
                     <span className={`text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
-                      â–¾
+                      
                     </span>
                   </button>
 

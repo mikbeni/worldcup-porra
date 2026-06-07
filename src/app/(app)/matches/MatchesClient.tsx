@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
 import { format } from 'date-fns'
@@ -38,7 +38,7 @@ export function MatchesClient({ matches }: { matches: any[] }) {
     <div className="space-y-8 animate-in">
       <div>
         <h1 className="font-display font-extrabold text-3xl text-white mb-2">Partidos</h1>
-        <p className="text-slate-400">{matches.length} partidos Â· Mundial 2026</p>
+        <p className="text-slate-400">{matches.length} partidos - Mundial 2026</p>
       </div>
 
       {/* Round filter */}
@@ -61,9 +61,9 @@ export function MatchesClient({ matches }: { matches: any[] }) {
       {/* Matches by date */}
       {Object.keys(grouped).length === 0 ? (
         <div className="card text-center py-16">
-          <div className="text-5xl mb-4">ðŸ“…</div>
-          <p className="text-slate-400">No hay partidos programados aÃºn.</p>
-          <p className="text-slate-500 text-sm mt-1">El admin puede aÃ±adirlos desde el panel.</p>
+          <div className="text-5xl mb-4"></div>
+          <p className="text-slate-400">No hay partidos programados an.</p>
+          <p className="text-slate-500 text-sm mt-1">El admin puede aadirlos desde el panel.</p>
         </div>
       ) : (
         Object.entries(grouped).map(([date, dayMatches]) => (
@@ -103,7 +103,7 @@ function MatchCard({ match }: { match: any }) {
           {match.group && <span className="text-xs text-slate-600">Grupo {match.group}</span>}
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_STYLES[match.status]}`}>
             {live
-              ? 'âš¡ En vivo'
+              ? ' En vivo'
               : finished
               ? 'Finalizado'
               : format(new Date(match.scheduledAt), 'HH:mm')}
@@ -114,11 +114,11 @@ function MatchCard({ match }: { match: any }) {
         <div className="flex-1 flex items-center gap-4">
           {/* Home */}
           <div className={`flex-1 flex flex-col items-center gap-1.5 ${finished && awayWin ? 'opacity-50' : ''}`}>
-            <span className="text-4xl">{match.homeTeam?.flagEmoji ?? 'ðŸ³ï¸'}</span>
+            <span className="text-4xl">{match.homeTeam?.flagEmoji ?? ''}</span>
             <span className="text-sm font-semibold text-white text-center">
               {match.homeTeam?.name ?? 'Por definir'}
             </span>
-            <span className="text-xs text-slate-500">{match.homeTeam?.code ?? 'â€”'}</span>
+            <span className="text-xs text-slate-500">{match.homeTeam?.code ?? ''}</span>
           </div>
 
           {/* Score */}
@@ -126,7 +126,7 @@ function MatchCard({ match }: { match: any }) {
             {finished ? (
               <>
                 <div className="font-display font-extrabold text-2xl text-white">
-                  {match.homeScore} â€” {match.awayScore}
+                  {match.homeScore}  {match.awayScore}
                 </div>
                 {match.homePenalties !== null && (
                   <div className="text-xs text-slate-500">
@@ -136,7 +136,7 @@ function MatchCard({ match }: { match: any }) {
               </>
             ) : live ? (
               <div className="font-display font-extrabold text-2xl text-green-400">
-                {match.homeScore ?? 0} â€” {match.awayScore ?? 0}
+                {match.homeScore ?? 0} - {match.awayScore ?? 0}
               </div>
             ) : (
               <div className="font-display font-bold text-xl text-slate-600">VS</div>
@@ -145,17 +145,17 @@ function MatchCard({ match }: { match: any }) {
 
           {/* Away */}
           <div className={`flex-1 flex flex-col items-center gap-1.5 ${finished && homeWin ? 'opacity-50' : ''}`}>
-            <span className="text-4xl">{match.awayTeam?.flagEmoji ?? 'ðŸ³ï¸'}</span>
+            <span className="text-4xl">{match.awayTeam?.flagEmoji ?? ''}</span>
             <span className="text-sm font-semibold text-white text-center">
               {match.awayTeam?.name ?? 'Por definir'}
             </span>
-            <span className="text-xs text-slate-500">{match.awayTeam?.code ?? 'â€”'}</span>
+            <span className="text-xs text-slate-500">{match.awayTeam?.code ?? ''}</span>
           </div>
         </div>
 
         {/* Venue */}
         <div className="hidden sm:flex flex-col items-end gap-1 min-w-[100px]">
-          {match.venue && <span className="text-xs text-slate-500 text-right">ðŸ“ {match.venue}</span>}
+          {match.venue && <span className="text-xs text-slate-500 text-right"> {match.venue}</span>}
           <span className="text-xs text-slate-600">#{match.matchNumber}</span>
         </div>
       </div>

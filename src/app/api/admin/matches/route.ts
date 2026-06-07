@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 
-export const dynamic = 'force-dynamic'
-
 async function requireAdmin() {
   const cookieStore = cookies()
   const userId = cookieStore.get('porra_session')?.value
@@ -11,8 +9,6 @@ async function requireAdmin() {
   const user = await prisma.user.findUnique({ where: { id: userId } })
   return user?.isAdmin ? user : null
 }
-
-
 
 export async function POST(request: Request) {
   const admin = await requireAdmin()

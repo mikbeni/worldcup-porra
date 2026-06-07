@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { Navbar } from '@/components/shared/Navbar'
+import { arePicksLocked } from '@/lib/tournament'
 
 async function getUser() {
   const cookieStore = cookies()
@@ -14,9 +15,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await getUser()
   if (!user) redirect('/login')
 
+  const { locked } = await arePicksLocked()
+
   return (
     <div className="min-h-screen bg-slate-950 bg-mesh">
-      <Navbar user={user} />
+      <Navbar user={user} picksLocked={locked} />
       <main className="max-w-6xl mx-auto px-4 py-8">
         {children}
       </main>

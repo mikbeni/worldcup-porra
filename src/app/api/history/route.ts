@@ -2,10 +2,6 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { format } from 'date-fns'
 
-export const dynamic = 'force-dynamic'
-
-
-
 export async function GET() {
   const allHistory = await prisma.pointsHistory.findMany({
     include: { user: true },

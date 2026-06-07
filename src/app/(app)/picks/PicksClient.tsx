@@ -4,16 +4,18 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const TIER_STYLES = {
-  1: { badge: 'tier-badge-1', border: 'border-yellow-500/40 hover:border-yellow-400/60', selected: 'border-yellow-400 bg-yellow-500/10', label: 'text-yellow-400', icon: '👑' },
-  2: { badge: 'tier-badge-2', border: 'border-blue-500/30 hover:border-blue-400/60', selected: 'border-blue-400 bg-blue-500/10', label: 'text-blue-400', icon: '💪' },
-  3: { badge: 'tier-badge-3', border: 'border-purple-500/30 hover:border-purple-400/60', selected: 'border-purple-400 bg-purple-500/10', label: 'text-purple-400', icon: '⚡' },
-  4: { badge: 'tier-badge-4', border: 'border-pink-500/30 hover:border-pink-400/60', selected: 'border-pink-400 bg-pink-500/10', label: 'text-pink-400', icon: '🎲' },
+  1: { badge: 'tier-badge-1', border: 'border-yellow-500/40 hover:border-yellow-400/60', selected: 'border-yellow-400 bg-yellow-500/10', label: 'text-yellow-400', icon: '' },
+  2: { badge: 'tier-badge-2', border: 'border-blue-500/30 hover:border-blue-400/60', selected: 'border-blue-400 bg-blue-500/10', label: 'text-blue-400', icon: '' },
+  3: { badge: 'tier-badge-3', border: 'border-purple-500/30 hover:border-purple-400/60', selected: 'border-purple-400 bg-purple-500/10', label: 'text-purple-400', icon: '' },
+  4: { badge: 'tier-badge-4', border: 'border-pink-500/30 hover:border-pink-400/60', selected: 'border-pink-400 bg-pink-500/10', label: 'text-pink-400', icon: '' },
 } as const
 
-export function PicksClient({ tiers, existingPicks, hasPicks, userId }: {
+export function PicksClient({ tiers, existingPicks, hasPicks, locked, firstMatch, userId }: {
   tiers: any[]
   existingPicks: any[]
   hasPicks: boolean
+  locked: boolean
+  firstMatch: string | null
   userId: string
 }) {
   // Map: tierNumber -> Set<teamId>
@@ -94,6 +96,23 @@ export function PicksClient({ tiers, existingPicks, hasPicks, userId }: {
     setSaving(false)
   }
 
+  // If locked and no picks: show locked state
+  if (locked && !hasPicks) {
+    return (
+      <div className="space-y-6 animate-in">
+        <h1 className="font-display font-extrabold text-3xl text-white">Mis Picks</h1>
+        <div className="card p-10 text-center">
+          <div className="text-6xl mb-4"></div>
+          <h2 className="font-display font-bold text-xl text-white mb-2">Los picks estan cerrados</h2>
+          <p className="text-slate-400 mb-1">El torneo ya ha comenzado y no se pueden hacer nuevas selecciones.</p>
+          {firstMatch && (
+            <p className="text-sm text-slate-500">Primer partido: {new Date(firstMatch).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8 animate-in">
       {/* Header */}
@@ -102,9 +121,11 @@ export function PicksClient({ tiers, existingPicks, hasPicks, userId }: {
           {hasPicks ? 'Mis Selecciones' : 'Haz tus Picks'}
         </h1>
         <p className="text-slate-400">
-          {hasPicks
-            ? 'Ya guardaste tus selecciones. ¡Ahora a esperar los partidos!'
-            : 'Elige 1 + 2 + 3 + 4 equipos de cada tier. Los outsiders multiplican más puntos.'}
+          {locked
+            ? ' Los picks estan cerrados. El torneo ya ha comenzado.'
+            : hasPicks
+            ? 'Ya guardaste tus selecciones. Ahora a esperar los partidos!'
+            : 'Elige 1 + 2 + 3 + 4 equipos de cada tier. Los outsiders multiplican ms puntos.'}
         </p>
       </div>
 
@@ -159,14 +180,14 @@ export function PicksClient({ tiers, existingPicks, hasPicks, userId }: {
                       <h2 className="font-display font-bold text-lg text-white">{tier.label}</h2>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Elige {tier.maxPicks} equipo{tier.maxPicks > 1 ? 's' : ''} · Multiplicador{' '}
-                      <span className={`font-bold ${styles.label}`}>×{tier.multiplier}</span>
+                      Elige {tier.maxPicks} equipo{tier.maxPicks > 1 ? 's' : ''}  Multiplicador{' '}
+                      <span className={`font-bold ${styles.label}`}>{tier.multiplier}</span>
                     </p>
                   </div>
                 </div>
                 <div className={`text-sm font-bold ${status.complete ? 'text-pitch-400' : 'text-slate-500'}`}>
                   {status.selected}/{status.required}
-                  {status.complete && <span className="ml-1">✓</span>}
+                  {status.complete && <span className="ml-1"></span>}
                 </div>
               </div>
 
@@ -193,7 +214,7 @@ export function PicksClient({ tiers, existingPicks, hasPicks, userId }: {
                     >
                       {isSelected && (
                         <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-pitch-500 rounded-full flex items-center justify-center text-xs font-bold shadow">
-                          ✓
+                          
                         </div>
                       )}
                       <span className="text-3xl leading-none">{team.flagEmoji}</span>
@@ -219,13 +240,13 @@ export function PicksClient({ tiers, existingPicks, hasPicks, userId }: {
             {error && <p className="text-red-400 text-sm">{error}</p>}
             {saved ? (
               <div className="flex items-center gap-2 text-pitch-400 font-bold">
-                <span>✅</span> ¡Picks guardados! Redirigiendo...
+                <span></span> Picks guardados! Redirigiendo...
               </div>
             ) : (
               <>
                 <div className="text-sm text-slate-400">
                   {allComplete
-                    ? '¡Todo listo para guardar!'
+                    ? 'Todo listo para guardar!'
                     : `Faltan ${completionStatus.filter((s) => !s.complete).length} tiers`}
                 </div>
                 <button
@@ -239,7 +260,7 @@ export function PicksClient({ tiers, existingPicks, hasPicks, userId }: {
                       Guardando...
                     </>
                   ) : (
-                    <>🎯 Guardar mis picks</>
+                    <> Guardar mis picks</>
                   )}
                 </button>
               </>
