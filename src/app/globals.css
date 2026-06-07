@@ -1,0 +1,95 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --pitch-green: #16a34a;
+    --gold: #f59e0b;
+    --card-bg: rgba(15, 23, 42, 0.8);
+    --card-border: rgba(255, 255, 255, 0.08);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  ::selection {
+    background: rgba(245, 158, 11, 0.3);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0f172a;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-slate-900/80 border border-white/[0.08] rounded-2xl backdrop-blur-sm;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-300 hover:border-white/[0.15] hover:bg-slate-800/80 hover:shadow-lg hover:shadow-black/20;
+  }
+
+  .btn-primary {
+    @apply bg-pitch-500 hover:bg-pitch-600 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-pitch-500/25 active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-800 hover:bg-slate-700 text-slate-100 font-medium px-6 py-3 rounded-xl transition-all duration-200 border border-white/[0.08] active:scale-95;
+  }
+
+  .btn-gold {
+    @apply bg-gold-500 hover:bg-gold-600 text-slate-900 font-bold px-6 py-3 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-gold-500/30 active:scale-95;
+  }
+
+  .tier-badge-1 {
+    @apply bg-yellow-500/20 text-yellow-300 border border-yellow-500/30;
+  }
+  .tier-badge-2 {
+    @apply bg-blue-500/20 text-blue-300 border border-blue-500/30;
+  }
+  .tier-badge-3 {
+    @apply bg-purple-500/20 text-purple-300 border border-purple-500/30;
+  }
+  .tier-badge-4 {
+    @apply bg-pink-500/20 text-pink-300 border border-pink-500/30;
+  }
+
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-gold-400 to-gold-300;
+  }
+
+  .section-title {
+    @apply font-display font-bold text-2xl text-white;
+  }
+
+  .input-field {
+    @apply w-full bg-slate-800/80 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-pitch-500/60 focus:ring-2 focus:ring-pitch-500/20 transition-all;
+  }
+}
+
+@layer utilities {
+  .animate-in {
+    animation: fadeIn 0.4s ease-out;
+  }
+
+  .bg-mesh {
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(22, 163, 74, 0.07) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(245, 158, 11, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 80%, rgba(37, 99, 235, 0.05) 0%, transparent 50%);
+  }
+}
