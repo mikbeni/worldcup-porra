@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { calculatePoints, type ScoringReason } from '@/lib/scoring'
 
+export const dynamic = 'force-dynamic'
+
 async function requireAdmin() {
   const cookieStore = cookies()
   const userId = cookieStore.get('porra_session')?.value

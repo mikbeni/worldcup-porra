@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db'
 import { GroupsClient } from './GroupsClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function GroupsPage() {
   const tournament = await prisma.tournament.findFirst({ where: { isActive: true } })
   if (!tournament) return <p className="text-slate-400">No hay torneo activo.</p>

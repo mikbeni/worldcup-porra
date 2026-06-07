@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { redirect } from 'next/navigation'
 import { AdminClient } from './AdminClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminPage() {
   const cookieStore = cookies()
   const userId = cookieStore.get('porra_session')?.value

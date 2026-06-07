@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { arePicksLocked } from '@/lib/tournament'
 import { DashboardClient } from './DashboardClient'
 
+export const dynamic = 'force-dynamic'
+
 async function getDashboardData(userId: string) {
   const [user, allUsers, recentMatches, tournament, lockInfo] = await Promise.all([
     prisma.user.findUnique({

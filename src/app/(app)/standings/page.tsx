@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db'
 import { cookies } from 'next/headers'
 import { StandingsClient } from './StandingsClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function StandingsPage() {
   const cookieStore = cookies()
   const userId = cookieStore.get('porra_session')?.value!

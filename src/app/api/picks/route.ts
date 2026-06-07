@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { arePicksLocked } from '@/lib/tournament'
 
+export const dynamic = 'force-dynamic'
+
 async function getUserId(): Promise<string | null> {
   const cookieStore = cookies()
   return cookieStore.get('porra_session')?.value ?? null

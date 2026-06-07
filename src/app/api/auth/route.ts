@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db'
 import { generateAvatar } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 
+export const dynamic = 'force-dynamic'
+
 function validatePin(pin: string): boolean {
   return /^\d{4}$/.test(pin)
 }

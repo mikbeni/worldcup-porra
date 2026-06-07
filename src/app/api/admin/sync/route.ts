@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db'
 import { MatchRound, MatchStatus } from '@prisma/client'
 import { calculatePoints, type ScoringReason } from '@/lib/scoring'
 
+export const dynamic = 'force-dynamic'
+
 async function requireAdmin() {
   const cookieStore = cookies()
   const userId = cookieStore.get('porra_session')?.value

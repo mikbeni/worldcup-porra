@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { arePicksLocked } from '@/lib/tournament'
 import { PicksClient } from './PicksClient'
 
+export const dynamic = 'force-dynamic'
+
 export default async function PicksPage() {
   const cookieStore = cookies()
   const userId = cookieStore.get('porra_session')?.value!
