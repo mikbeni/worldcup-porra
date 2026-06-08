@@ -1,188 +1,290 @@
-# ⚽ Porra Mundial 2026
+# Porra Mundial 2026
 
-Plataforma completa para gestionar una porra privada del Mundial de Fútbol entre amigos.
+Aplicacion privada para gestionar una porra del Mundial 2026 entre amigos.
+
+Estado actual:
+
+- Next.js 14 App Router + TypeScript
+- PostgreSQL + Prisma
+- Deploy preparado para Vercel + Neon/Supabase
+- 48 equipos y 12 grupos
+- 72 partidos de fase de grupos
+- Login/registro por usuario + PIN de 4 digitos
+- Picks bloqueables al empezar el torneo
+- Clasificacion publica
+- Panel admin para resultados, grupos, fases KO, usuarios y sync con API-Football
 
 ## Stack
 
-- **Frontend/Backend**: Next.js 14 (App Router) + TypeScript
-- **Estilos**: TailwindCSS
-- **Base de datos**: PostgreSQL + Prisma ORM
-- **Gráficos**: Recharts
-- **Auth**: Sesión por nombre de usuario (MVP)
+- Frontend/backend: Next.js 14
+- UI: React + TailwindCSS + lucide-react
+- Base de datos: PostgreSQL
+- ORM: Prisma
+- Graficos: Recharts
+- Password/PIN: bcryptjs
+- Deploy recomendado: Vercel
 
----
+## Inicio local
 
-## 🚀 Inicio Rápido
+Requisitos:
 
-### Opción A: Docker (recomendado)
+- Node.js 20+
+- PostgreSQL local o remoto
 
-```bash
-# 1. Clonar y entrar
-git clone <repo> && cd worldcup-porra
-
-# 2. Arrancar todo (PostgreSQL + App)
-docker-compose up -d
-
-# La app estará disponible en http://localhost:3000
-# Usuario admin: "admin"
-```
-
-### Opción B: Manual
-
-**Requisitos**: Node.js 20+, PostgreSQL 14+
-
-```bash
-# 1. Instalar dependencias
+```powershell
 npm install
-
-# 2. Configurar entorno
-cp .env.example .env
-# Editar .env con tu DATABASE_URL
-
-# 3. Crear tablas y poblar datos
-npx prisma db push
-npm run db:seed
-
-# 4. Arrancar en desarrollo
-npm run dev
+copy .env.example .env
 ```
 
----
+Edita `.env`:
 
-## 📁 Estructura del Proyecto
-
-```
-src/
-├── app/
-│   ├── (app)/               # Rutas protegidas (requieren auth)
-│   │   ├── dashboard/       # Página principal
-│   │   ├── picks/           # Selección de equipos por tier
-│   │   ├── standings/       # Clasificación + gráfico evolución
-│   │   ├── matches/         # Lista de partidos
-│   │   └── admin/           # Panel de administración
-│   ├── api/
-│   │   ├── auth/            # Login/logout
-│   │   ├── picks/           # Guardar/leer selecciones
-│   │   ├── standings/       # Clasificación general
-│   │   ├── matches/         # Partidos
-│   │   ├── tiers/           # Tiers + equipos
-│   │   ├── history/         # Historial de puntos para gráficos
-│   │   └── admin/           # Resultados + avance de fases
-│   ├── clasificacion/       # Página pública de clasificación
-│   └── login/               # Acceso
-├── components/
-│   └── shared/Navbar.tsx
-├── lib/
-│   ├── db.ts                # Prisma client
-│   ├── auth.ts              # Sesión
-│   └── scoring.ts           # Motor de puntuación
-└── types/index.ts
+```env
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB?sslmode=require"
+ADMIN_SECRET="un_secreto_largo"
+API_FOOTBALL_KEY="tu_api_key_opcional"
 ```
 
----
+Crear tablas y cargar datos iniciales completos:
 
-## 🎯 Sistema de Selección
+```powershell
+npx.cmd prisma db push
+npm.cmd run db:seed
+```
+
+Arrancar:
+
+```powershell
+npm.cmd run dev
+```
+
+La app queda en:
+
+```text
+http://localhost:3000
+```
+
+## Scripts
+
+```json
+"dev": "next dev",
+"build": "prisma generate && next build",
+"start": "next start",
+"db:push": "prisma db push",
+"db:seed": "tsx prisma/seed.ts && tsx prisma/seed-teams-2026.ts && tsx prisma/seed-matches-2026.ts",
+"db:seed:base": "tsx prisma/seed.ts",
+"db:seed:teams": "tsx prisma/seed-teams-2026.ts",
+"db:seed:matches": "tsx prisma/seed-matches-2026.ts",
+"db:studio": "prisma studio"
+```
+
+Importante:
+
+- `npm.cmd run db:seed` recarga base + equipos + partidos.
+- `db:seed:teams` borra picks porque reemplaza equipos.
+- Para recuperar solo partidos sin tocar usuarios, picks ni equipos, usa `db:seed:matches`.
+
+## Datos del torneo
+
+El seed actual carga:
+
+- 48 equipos
+- 12 grupos, de A a L
+- 72 partidos de fase de grupos
+
+Archivos relevantes:
+
+```text
+prisma/seed.ts
+prisma/seed-teams-2026.ts
+prisma/seed-matches-2026.ts
+```
+
+## Sistema de picks
+
+Cada usuario elige 10 equipos:
 
 | Tier | Nombre | Picks | Multiplicador |
-|------|--------|-------|---------------|
-| 1 | Favoritos | 1 | ×1.0 |
-| 2 | Fuertes | 2 | ×1.5 |
-| 3 | Competitivos | 3 | ×2.5 |
-| 4 | Outsiders | 4 | ×4.0 |
+|---:|---|---:|---:|
+| 1 | Favoritos | 1 | x1.0 |
+| 2 | Fuertes | 2 | x1.5 |
+| 3 | Competitivos | 3 | x2.5 |
+| 4 | Outsiders | 4 | x3.0 |
 
----
+No se puede repetir equipo.
 
-## 📊 Sistema de Puntuación
+## Puntuacion
 
-| Logro | Base | T1 | T2 | T3 | T4 |
-|-------|------|-----|-----|-----|-----|
-| Victoria | 3 | 3 | 4.5 | 7.5 | 12 |
-| Empate | 1 | 1 | 1.5 | 2.5 | 4 |
-| Octavos | 5 | 5 | 7.5 | 12.5 | 20 |
-| Cuartos | 10 | 10 | 15 | 25 | 40 |
-| Semis | 20 | 20 | 30 | 50 | 80 |
-| Final | 30 | 30 | 45 | 75 | 120 |
-| **Campeón** | **50** | **50** | **75** | **125** | **200** |
-| **Máx posible** | — | **~128** | **~192** | **~320** | **~512** |
+| Logro | Base |
+|---|---:|
+| Victoria | 3 |
+| Empate | 2 |
+| Primero de grupo | 8 |
+| Segundo de grupo | 4 |
+| Octavos | 5 |
+| Cuartos | 12 |
+| Semifinales | 20 |
+| Final | 30 |
+| Campeon | 50 |
 
----
+Los puntos base se multiplican por el tier del equipo elegido.
 
-## 🔧 Panel de Administración
+## Rutas principales
 
-Accede con cualquier usuario marcado como `isAdmin = true` en la BD.
+| URL | Descripcion | Auth |
+|---|---|---|
+| `/login` | Login/registro por usuario y PIN | No |
+| `/dashboard` | Resumen personal | Si |
+| `/picks` | Seleccion de equipos | Si |
+| `/grupos` | Grupos, tablas y partidos | Si |
+| `/matches` | Calendario de partidos | Si |
+| `/standings` | Clasificacion privada con grafico | Si |
+| `/info` | Reglas y puntuacion | Si |
+| `/admin` | Administracion | Si, admin |
+| `/clasificacion` | Clasificacion publica | No |
 
-**Funciones:**
-- **Resumen**: estadísticas del torneo
-- **Crear Partido**: programar partidos con equipos, fecha y estadio
-- **Resultado**: introducir marcador (asigna puntos automáticamente)
-- **Fase**: marcar cuando un equipo avanza a octavos/cuartos/semis/final/campeón
-- **Usuarios**: ver participantes y sus picks
+Las rutas con datos vivos estan marcadas como dinamicas para evitar cache de Vercel en clasificaciones y APIs.
 
-**Hacer a un usuario admin:**
+## Panel admin
+
+Funciones:
+
+- Ver resumen
+- Crear partidos
+- Guardar resultados
+- Cerrar grupos y asignar puntos de primero/segundo
+- Asignar fases KO: octavos, cuartos, semis, final y campeon
+- Ver usuarios y picks
+- Resetear PIN de usuarios
+- Sincronizar partidos del dia con API-Football
+
+Para hacer admin a un usuario:
+
 ```sql
-UPDATE "User" SET "isAdmin" = true WHERE username = 'tu_usuario';
+UPDATE "User"
+SET "isAdmin" = true
+WHERE "username" = 'tu_usuario';
 ```
 
----
+## Sync con API-Football
 
-## 🌍 Páginas
+El boton `Sync ahora` llama a:
 
-| URL | Descripción | Auth |
-|-----|-------------|------|
-| `/` | Redirect a dashboard o login | — |
-| `/login` | Acceso por nombre de usuario | No |
-| `/dashboard` | Hub principal con stats | Sí |
-| `/picks` | Seleccionar equipos por tier | Sí |
-| `/standings` | Clasificación + gráfico | Sí |
-| `/matches` | Partidos filtrados por ronda | Sí |
-| `/admin` | Panel de administración | Sí (admin) |
-| `/clasificacion` | Clasificación pública compartible | No |
-
----
-
-## 🔌 Integración con APIs Deportivas (futuro)
-
-El modelo de datos está preparado. Solo necesitas un cron job que llame a `/api/admin` con los resultados:
-
-```typescript
-// Ejemplo: integrar con API-Football, SportRadar, etc.
-await fetch('/api/admin', {
-  method: 'POST',
-  headers: { 'Cookie': 'porra_session=ADMIN_USER_ID' },
-  body: JSON.stringify({
-    matchId: 'match_id_interno',
-    homeScore: 2,
-    awayScore: 1,
-  })
-})
+```text
+POST /api/admin/sync
 ```
 
----
+Requiere:
 
-## 🌐 Despliegue en Vercel + Neon
-
-```bash
-# 1. Crear BD en neon.tech (gratis)
-# 2. Copiar DATABASE_URL a Vercel
-
-vercel env add DATABASE_URL
-vercel env add ADMIN_SECRET
-
-# 3. Deploy
-vercel --prod
-
-# 4. Migrar BD
-vercel run -- npx prisma db push
-vercel run -- npm run db:seed
+```env
+API_FOOTBALL_KEY="..."
 ```
 
----
+Comportamiento:
 
-## 🔮 Extensiones Futuras
+- Busca fixtures del Mundial 2026 para la fecha actual.
+- Mapea nombres de API-Football a equipos internos.
+- Actualiza partidos existentes cuando coinciden ronda/grupo/equipos.
+- Crea partido `apif-*` solo como fallback.
+- Si el partido esta finalizado, asigna puntos de victoria/empate sin duplicar.
 
-- Soporte multi-torneo (Eurocopa, Copa América) — ya modelado con `Tournament`
-- Integración automática con APIs deportivas
-- Notificaciones push / email al actualizar resultados
-- Sistema de grupos y ligas privadas
-- Predicciones pre-torneo
-- App móvil (React Native / PWA)
+Incluye alias para nombres como:
+
+- `Spain` -> `ESP`
+- `Germany` -> `GER`
+- `Netherlands` -> `NED`
+- `South Korea` -> `KOR`
+- `Ivory Coast` -> `CIV`
+- `Cape Verde` -> `CPV`
+- `Saudi Arabia` -> `KSA`
+- `DR Congo` / `Congo DR` -> `COD`
+
+## Deploy en Vercel
+
+Variables necesarias:
+
+```env
+DATABASE_URL="postgresql://..."
+ADMIN_SECRET="un_secreto_largo"
+API_FOOTBALL_KEY="opcional_para_sync"
+```
+
+Build command:
+
+```text
+npm run build
+```
+
+Despues del primer deploy:
+
+```powershell
+$env:DATABASE_URL="postgresql://URL_REAL_DE_PRODUCCION"
+npx.cmd prisma db push
+npm.cmd run db:seed
+```
+
+## Mantenimiento seguro
+
+### Recuperar solo partidos
+
+Si borraste partidos pero quieres mantener usuarios, picks y equipos:
+
+```powershell
+$env:DATABASE_URL="postgresql://URL_REAL_DE_PRODUCCION"
+npm.cmd run db:seed:matches
+```
+
+### Resetear resultados sin tocar picks
+
+En SQL:
+
+```sql
+BEGIN;
+
+DELETE FROM "PointsHistory";
+
+DELETE FROM "Match"
+WHERE "round" <> 'GROUP'
+  AND (
+    "venue" ILIKE '%simulado%'
+    OR "matchNumber" > 72
+  );
+
+UPDATE "Match"
+SET
+  "status" = 'SCHEDULED',
+  "homeScore" = NULL,
+  "awayScore" = NULL,
+  "homePenalties" = NULL,
+  "awayPenalties" = NULL
+WHERE "round" = 'GROUP';
+
+UPDATE "Team"
+SET
+  "eliminated" = false,
+  "finalPosition" = NULL;
+
+COMMIT;
+```
+
+### Borrar usuarios de simulacion
+
+```sql
+BEGIN;
+
+DELETE FROM "Pick"
+WHERE "userId" IN (
+  SELECT "id" FROM "User"
+  WHERE "username" LIKE 'sim\_%' ESCAPE '\'
+);
+
+DELETE FROM "User"
+WHERE "username" LIKE 'sim\_%' ESCAPE '\';
+
+COMMIT;
+```
+
+## Notas
+
+- Las banderas se guardan como emoji en `flagEmoji`. En algunos PC Windows pueden no verse igual que en movil.
+- No ejecutes `db:seed:teams` cuando ya haya picks reales, porque reemplaza equipos y borra picks.
+- Para cambios de datos en produccion, usa siempre la `DATABASE_URL` real de Neon/Supabase.
