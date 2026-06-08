@@ -18,6 +18,108 @@ const BASE = 'https://v3.football.api-sports.io'
 const LEAGUE_ID = 1
 const SEASON = 2026
 
+const API_TEAM_CODE_ALIASES: Record<string, string> = {
+  // Group A
+  mexico: 'MEX',
+  'south africa': 'RSA',
+  'korea republic': 'KOR',
+  'south korea': 'KOR',
+  czechia: 'CZE',
+  'czech republic': 'CZE',
+  // Group B
+  canada: 'CAN',
+  qatar: 'QAT',
+  switzerland: 'SUI',
+  bosnia: 'BIH',
+  'bosnia and herzegovina': 'BIH',
+  'bosnia & herzegovina': 'BIH',
+  // Group C
+  brazil: 'BRA',
+  morocco: 'MAR',
+  haiti: 'HAI',
+  scotland: 'SCO',
+  // Group D
+  usa: 'USA',
+  'united states': 'USA',
+  'united states of america': 'USA',
+  paraguay: 'PAR',
+  australia: 'AUS',
+  turkey: 'TUR',
+  turkiye: 'TUR',
+  türkiye: 'TUR',
+  // Group E
+  germany: 'GER',
+  curacao: 'CUW',
+  curaçao: 'CUW',
+  'ivory coast': 'CIV',
+  'cote divoire': 'CIV',
+  "cote d'ivoire": 'CIV',
+  'côte divoire': 'CIV',
+  "côte d'ivoire": 'CIV',
+  ecuador: 'ECU',
+  // Group F
+  netherlands: 'NED',
+  holland: 'NED',
+  japan: 'JPN',
+  tunisia: 'TUN',
+  sweden: 'SWE',
+  // Group G
+  belgium: 'BEL',
+  egypt: 'EGY',
+  iran: 'IRN',
+  'new zealand': 'NZL',
+  // Group H
+  spain: 'ESP',
+  'cape verde': 'CPV',
+  'saudi arabia': 'KSA',
+  uruguay: 'URU',
+  // Group I
+  france: 'FRA',
+  senegal: 'SEN',
+  norway: 'NOR',
+  iraq: 'IRQ',
+  // Group J
+  argentina: 'ARG',
+  algeria: 'ALG',
+  austria: 'AUT',
+  jordan: 'JOR',
+  // Group K
+  portugal: 'POR',
+  colombia: 'COL',
+  uzbekistan: 'UZB',
+  'dr congo': 'COD',
+  'congo dr': 'COD',
+  'democratic republic of congo': 'COD',
+  // Group L
+  england: 'ENG',
+  croatia: 'CRO',
+  ghana: 'GHA',
+  panama: 'PAN',
+}
+
+function normalizeTeamName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+async function findTeamFromApiName(name: string, tournamentId: string) {
+  const normalized = normalizeTeamName(name)
+  const aliasCode = API_TEAM_CODE_ALIASES[normalized]
+
+  if (aliasCode) {
+    const byCode = await prisma.team.findFirst({ where: { code: aliasCode, tournamentId } })
+    if (byCode) return byCode
+  }
+
+  const teams = await prisma.team.findMany({ where: { tournamentId } })
+  return teams.find((team) => normalizeTeamName(team.name) === normalized) ?? null
+}
+
 function mapStatus(s: string): MatchStatus {
   if (['1H', '2H', 'ET', 'P', 'HT', 'BT', 'LIVE'].includes(s)) return MatchStatus.LIVE
   if (['FT', 'AET', 'PEN'].includes(s)) return MatchStatus.FINISHED
@@ -97,29 +199,52 @@ export async function POST() {
     for (const fixture of fixtures) {
       const { fixture: f, teams, goals, score, league } = fixture
 
-      const homeTeam = await prisma.team.findFirst({
-        where: { name: teams.home.name, tournamentId: tournament.id },
-      })
-      const awayTeam = await prisma.team.findFirst({
-        where: { name: teams.away.name, tournamentId: tournament.id },
-      })
+      const homeTeam = await findTeamFromApiName(teams.home.name, tournament.id)
+      const awayTeam = await findTeamFromApiName(teams.away.name, tournament.id)
 
       const newStatus = mapStatus(f.status.short)
-      const groupMatch = (league.round ?? '').match(/Group\s+([A-H])/i)
+      const round = mapRound(league.round ?? '')
+      const groupMatch = (league.round ?? '').match(/Group\s+([A-L])/i)
+      const existingMatch = homeTeam && awayTeam
+        ? await prisma.match.findFirst({
+            where: {
+              tournamentId: tournament.id,
+              round,
+              group: groupMatch?.[1]?.toUpperCase() ?? undefined,
+              homeTeamId: homeTeam.id,
+              awayTeamId: awayTeam.id,
+            },
+          })
+        : null
 
-      const match = await prisma.match.upsert({
-        where: { id: `apif-${f.id}` },
-        update: {
+      const match = existingMatch
+        ? await prisma.match.update({
+          where: { id: existingMatch.id },
+          data: {
+            status: newStatus,
+            homeScore: goals.home,
+            awayScore: goals.away,
+            homePenalties: score?.penalty?.home ?? null,
+            awayPenalties: score?.penalty?.away ?? null,
+            scheduledAt: new Date(f.date),
+            venue: f.venue?.name ?? existingMatch.venue,
+          },
+        })
+        : await prisma.match.upsert({
+          where: { id: `apif-${f.id}` },
+          update: {
           status: newStatus,
           homeScore: goals.home,
           awayScore: goals.away,
           homePenalties: score?.penalty?.home ?? null,
           awayPenalties: score?.penalty?.away ?? null,
+          homeTeamId: homeTeam?.id ?? null,
+          awayTeamId: awayTeam?.id ?? null,
         },
-        create: {
+          create: {
           id: `apif-${f.id}`,
           matchNumber: f.id,
-          round: mapRound(league.round ?? ''),
+          round,
           group: groupMatch?.[1]?.toUpperCase() ?? null,
           scheduledAt: new Date(f.date),
           venue: f.venue?.name ?? null,
@@ -129,8 +254,8 @@ export async function POST() {
           homeTeamId: homeTeam?.id ?? null,
           awayTeamId: awayTeam?.id ?? null,
           tournamentId: tournament.id,
-        },
-      })
+          },
+        })
       matchesUpdated++
 
       // Auto-award points for finished matches
