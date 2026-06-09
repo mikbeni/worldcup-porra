@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { CopyrightNotice } from '@/components/shared/CopyrightNotice'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -125,6 +126,10 @@ export default function LoginPage() {
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="mt-6">
+          <CopyrightNotice compact />
         </div>
       </div>
     </div>

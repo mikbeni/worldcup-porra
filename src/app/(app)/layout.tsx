@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { Navbar } from '@/components/shared/Navbar'
+import { CopyrightNotice } from '@/components/shared/CopyrightNotice'
 import { arePicksLocked } from '@/lib/tournament'
 
 async function getUser() {
@@ -23,6 +24,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <main className="max-w-6xl mx-auto px-4 py-8">
         {children}
       </main>
+      <footer className="max-w-6xl mx-auto px-4 pb-8">
+        <CopyrightNotice />
+      </footer>
     </div>
   )
 }
