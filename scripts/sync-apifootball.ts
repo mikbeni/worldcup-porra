@@ -144,7 +144,7 @@ async function main() {
         matchNumber: f.id,
         round,
         group,
-        scheduledAt: new Date(f.date),
+        scheduledAt: new Date(f.timestamp * 1000),
         venue: f.venue?.name ?? null,
         status,
         homeScore: goals.home,
