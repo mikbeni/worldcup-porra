@@ -31,7 +31,7 @@ export function AdminClient({ matches, teams, users, stats, tournament }: any) {
     const res = await fetch('/api/admin/sync', { method: 'POST' })
     const d = await res.json()
     setMsg(res.ok
-      ? ` Sync completado: ${d.matchesUpdated} partidos actualizados, ${d.fixturesSeen ?? 0} fixtures encontrados (${(d.dates ?? []).join(', ')})`
+      ? ` Sync completado: ${d.matchesUpdated} partidos actualizados, ${d.fixturesSeen ?? 0} fixtures encontrados, ${d.fixturesMatched ?? 0} vinculados (${d.mode ?? 'sync'})`
       : ` ${d.error}`)
     setSyncing(false)
   }

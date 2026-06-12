@@ -160,6 +160,18 @@ function getSyncDates() {
   return [...dates].sort()
 }
 
+async function fetchFixtures(apiKey: string, params: Record<string, string>) {
+  const searchParams = new URLSearchParams(params)
+  const res = await fetch(`${BASE}/fixtures?${searchParams.toString()}`, {
+    headers: { 'x-apisports-key': apiKey },
+  })
+  const data = await res.json()
+  if (!res.ok) {
+    throw new Error(data?.message || data?.errors?.requests || `API-Football respondió ${res.status}`)
+  }
+  return data.response ?? []
+}
+
 async function awardMatchPoints(matchId: string, homeTeamId: string | null, awayTeamId: string | null, homeScore: number, awayScore: number) {
   const homeWin = homeScore > awayScore
   const awayWin = awayScore > homeScore
@@ -211,28 +223,32 @@ export async function POST() {
   try {
     const syncDates = getSyncDates()
     const fixtures: any[] = []
+    let syncMode = 'date-window'
 
     for (const date of syncDates) {
-      const params = new URLSearchParams({
+      fixtures.push(...await fetchFixtures(apiKey, {
         league: String(LEAGUE_ID),
         season: String(SEASON),
         date,
         timezone: APP_TIME_ZONE,
-      })
-      const res = await fetch(`${BASE}/fixtures?${params.toString()}`, {
-        headers: { 'x-apisports-key': apiKey },
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data?.message || data?.errors?.requests || `API-Football respondió ${res.status}`)
-      }
-      fixtures.push(...(data.response ?? []))
+      }))
+    }
+
+    if (fixtures.length === 0) {
+      syncMode = 'season-fallback'
+      fixtures.push(...await fetchFixtures(apiKey, {
+        league: String(LEAGUE_ID),
+        season: String(SEASON),
+        timezone: APP_TIME_ZONE,
+      }))
     }
 
     const uniqueFixtures = [...new Map(fixtures.map((fixture) => [fixture.fixture.id, fixture])).values()]
 
     let matchesUpdated = 0
     let pointsAwarded = 0
+    let fixturesMatched = 0
+    let fixturesSkipped = 0
 
     for (const fixture of uniqueFixtures) {
       const { fixture: f, teams, goals, score, league } = fixture
@@ -256,6 +272,11 @@ export async function POST() {
         : null
       const existingByApiId = await prisma.match.findUnique({ where: { id: `apif-${f.id}` } })
       const matchToUpdate = existingByApiId ?? existingMatch
+
+      if (!matchToUpdate && (!homeTeam || !awayTeam)) {
+        fixturesSkipped++
+        continue
+      }
 
       const match = matchToUpdate
         ? await prisma.match.update({
@@ -296,6 +317,7 @@ export async function POST() {
           tournamentId: tournament.id,
           },
         })
+      fixturesMatched++
       matchesUpdated++
 
       // Auto-award points for finished matches
@@ -310,8 +332,11 @@ export async function POST() {
       matchesUpdated,
       pointsAwarded,
       fixturesSeen: uniqueFixtures.length,
+      fixturesMatched,
+      fixturesSkipped,
       dates: syncDates,
       timezone: APP_TIME_ZONE,
+      mode: syncMode,
     })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
