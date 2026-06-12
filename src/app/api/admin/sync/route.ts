@@ -15,9 +15,7 @@ async function requireAdmin() {
   return user?.isAdmin ? user : null
 }
 
-const BASE = 'https://v3.football.api-sports.io'
-const LEAGUE_ID = 1
-const SEASON = 2026
+const ESPN_SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard'
 
 const API_TEAM_CODE_ALIASES: Record<string, string> = {
   // Group A
@@ -32,6 +30,7 @@ const API_TEAM_CODE_ALIASES: Record<string, string> = {
   qatar: 'QAT',
   switzerland: 'SUI',
   bosnia: 'BIH',
+  'bosnia herzegovina': 'BIH',
   'bosnia and herzegovina': 'BIH',
   'bosnia & herzegovina': 'BIH',
   // Group C
@@ -43,6 +42,7 @@ const API_TEAM_CODE_ALIASES: Record<string, string> = {
   usa: 'USA',
   'united states': 'USA',
   'united states of america': 'USA',
+  usmnt: 'USA',
   paraguay: 'PAR',
   australia: 'AUS',
   turkey: 'TUR',
@@ -124,14 +124,22 @@ async function findTeamFromApiName(name: string, tournamentId: string) {
   return teams.find((team) => normalizeTeamName(team.name) === normalized) ?? null
 }
 
-function mapStatus(s: string): MatchStatus {
+function mapApiFootballStatus(s: string): MatchStatus {
   if (['1H', '2H', 'ET', 'P', 'HT', 'BT', 'LIVE'].includes(s)) return MatchStatus.LIVE
   if (['FT', 'AET', 'PEN'].includes(s)) return MatchStatus.FINISHED
   if (['PST', 'CANC', 'ABD'].includes(s)) return MatchStatus.POSTPONED
   return MatchStatus.SCHEDULED
 }
 
-function mapRound(round: string): MatchRound {
+function mapEspnStatus(status: string): MatchStatus {
+  if (status === 'STATUS_IN_PROGRESS') return MatchStatus.LIVE
+  if (status === 'STATUS_FULL_TIME' || status === 'STATUS_FINAL') return MatchStatus.FINISHED
+  if (status === 'STATUS_POSTPONED' || status === 'STATUS_CANCELED') return MatchStatus.POSTPONED
+  return MatchStatus.SCHEDULED
+}
+
+function mapRound(round: string | null | undefined): MatchRound {
+  if (!round) return MatchRound.GROUP
   if (round.includes('Group')) return MatchRound.GROUP
   if (round.includes('Round of 16') || round.includes('Round of 32')) return MatchRound.ROUND_OF_16
   if (round.includes('Quarter')) return MatchRound.QUARTER_FINAL
@@ -160,16 +168,30 @@ function getSyncDates() {
   return [...dates].sort()
 }
 
-async function fetchFixtures(apiKey: string, params: Record<string, string>) {
-  const searchParams = new URLSearchParams(params)
-  const res = await fetch(`${BASE}/fixtures?${searchParams.toString()}`, {
-    headers: { 'x-apisports-key': apiKey },
-  })
+function toEspnDate(date: string) {
+  return date.replace(/-/g, '')
+}
+
+async function fetchEspnEvents(date: string) {
+  const params = new URLSearchParams({ dates: toEspnDate(date) })
+  const res = await fetch(`${ESPN_SCOREBOARD}?${params.toString()}`)
   const data = await res.json()
   if (!res.ok) {
-    throw new Error(data?.message || data?.errors?.requests || `API-Football respondió ${res.status}`)
+    throw new Error(data?.message || `ESPN respondió ${res.status}`)
   }
-  return data.response ?? []
+  return data.events ?? []
+}
+
+function getEspnCompetitor(event: any, side: 'home' | 'away') {
+  const competitors = event.competitions?.[0]?.competitors ?? []
+  return competitors.find((competitor: any) => competitor.homeAway === side) ?? null
+}
+
+function getEspnScore(competitor: any) {
+  const score = competitor?.score
+  if (score === undefined || score === null || score === '') return null
+  const parsed = Number(score)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 async function awardMatchPoints(matchId: string, homeTeamId: string | null, awayTeamId: string | null, homeScore: number, awayScore: number) {
@@ -214,115 +236,88 @@ export async function POST() {
   const admin = await requireAdmin()
   if (!admin) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  const apiKey = process.env.API_FOOTBALL_KEY
-  if (!apiKey) return NextResponse.json({ error: 'API_FOOTBALL_KEY no configurada' }, { status: 500 })
-
   const tournament = await prisma.tournament.findFirst({ where: { isActive: true } })
   if (!tournament) return NextResponse.json({ error: 'No hay torneo activo' }, { status: 404 })
 
   try {
     const syncDates = getSyncDates()
-    const fixtures: any[] = []
-    let syncMode = 'date-window'
+    const events: any[] = []
 
     for (const date of syncDates) {
-      fixtures.push(...await fetchFixtures(apiKey, {
-        league: String(LEAGUE_ID),
-        season: String(SEASON),
-        date,
-        timezone: APP_TIME_ZONE,
-      }))
+      events.push(...await fetchEspnEvents(date))
     }
 
-    if (fixtures.length === 0) {
-      syncMode = 'season-fallback'
-      fixtures.push(...await fetchFixtures(apiKey, {
-        league: String(LEAGUE_ID),
-        season: String(SEASON),
-        timezone: APP_TIME_ZONE,
-      }))
-    }
-
-    const uniqueFixtures = [...new Map(fixtures.map((fixture) => [fixture.fixture.id, fixture])).values()]
+    const uniqueEvents = [...new Map(events.map((event) => [event.id, event])).values()]
 
     let matchesUpdated = 0
     let pointsAwarded = 0
-    let fixturesMatched = 0
-    let fixturesSkipped = 0
+    let eventsMatched = 0
+    let eventsSkipped = 0
 
-    for (const fixture of uniqueFixtures) {
-      const { fixture: f, teams, goals, score, league } = fixture
-
-      const homeTeam = await findTeamFromApiName(teams.home.name, tournament.id)
-      const awayTeam = await findTeamFromApiName(teams.away.name, tournament.id)
-
-      const newStatus = mapStatus(f.status.short)
-      const round = mapRound(league.round ?? '')
-      const groupMatch = (league.round ?? '').match(/Group\s+([A-L])/i)
-      const existingMatch = homeTeam && awayTeam
-        ? await prisma.match.findFirst({
-            where: {
-              tournamentId: tournament.id,
-              round,
-              group: groupMatch?.[1]?.toUpperCase() ?? undefined,
-              homeTeamId: homeTeam.id,
-              awayTeamId: awayTeam.id,
-            },
-          })
-        : null
-      const existingByApiId = await prisma.match.findUnique({ where: { id: `apif-${f.id}` } })
-      const matchToUpdate = existingByApiId ?? existingMatch
-
-      if (!matchToUpdate && (!homeTeam || !awayTeam)) {
-        fixturesSkipped++
+    for (const event of uniqueEvents) {
+      const competition = event.competitions?.[0]
+      const homeCompetitor = getEspnCompetitor(event, 'home')
+      const awayCompetitor = getEspnCompetitor(event, 'away')
+      if (!homeCompetitor || !awayCompetitor) {
+        eventsSkipped++
         continue
       }
 
-      const match = matchToUpdate
-        ? await prisma.match.update({
-          where: { id: matchToUpdate.id },
-          data: {
-            status: newStatus,
-            homeScore: goals.home,
-            awayScore: goals.away,
-            homePenalties: score?.penalty?.home ?? null,
-            awayPenalties: score?.penalty?.away ?? null,
-            scheduledAt: new Date(f.date),
-            venue: f.venue?.name ?? matchToUpdate.venue,
-          },
-        })
-        : await prisma.match.upsert({
-          where: { id: `apif-${f.id}` },
-          update: {
-          status: newStatus,
-          homeScore: goals.home,
-          awayScore: goals.away,
-          homePenalties: score?.penalty?.home ?? null,
-          awayPenalties: score?.penalty?.away ?? null,
-          homeTeamId: homeTeam?.id ?? null,
-          awayTeamId: awayTeam?.id ?? null,
-        },
-          create: {
-          id: `apif-${f.id}`,
-          matchNumber: f.id,
-          round,
-          group: groupMatch?.[1]?.toUpperCase() ?? null,
-          scheduledAt: new Date(f.date),
-          venue: f.venue?.name ?? null,
-          status: newStatus,
-          homeScore: goals.home,
-          awayScore: goals.away,
-          homeTeamId: homeTeam?.id ?? null,
-          awayTeamId: awayTeam?.id ?? null,
+      const homeTeam = await findTeamFromApiName(homeCompetitor.team.displayName, tournament.id)
+      const awayTeam = await findTeamFromApiName(awayCompetitor.team.displayName, tournament.id)
+      if (!homeTeam || !awayTeam) {
+        eventsSkipped++
+        continue
+      }
+
+      const homeScore = getEspnScore(homeCompetitor)
+      const awayScore = getEspnScore(awayCompetitor)
+      const newStatus = mapEspnStatus(event.status?.type?.name)
+      const round = mapRound(event.season?.type?.name ?? competition?.type?.text)
+      const venue = competition?.venue?.fullName ?? competition?.venue?.displayName ?? null
+
+      const matchToUpdate = await prisma.match.findFirst({
+        where: {
           tournamentId: tournament.id,
-          },
-        })
-      fixturesMatched++
+          homeTeamId: homeTeam.id,
+          awayTeamId: awayTeam.id,
+        },
+      }) ?? await prisma.match.findFirst({
+        where: {
+          tournamentId: tournament.id,
+          homeTeamId: awayTeam.id,
+          awayTeamId: homeTeam.id,
+        },
+      })
+
+      if (!matchToUpdate) {
+        eventsSkipped++
+        continue
+      }
+
+      const isReversed = matchToUpdate.homeTeamId === awayTeam.id && matchToUpdate.awayTeamId === homeTeam.id
+      const matchHomeScore = isReversed ? awayScore : homeScore
+      const matchAwayScore = isReversed ? homeScore : awayScore
+
+      const match = await prisma.match.update({
+        where: { id: matchToUpdate.id },
+        data: {
+          status: newStatus,
+          homeScore: matchHomeScore,
+          awayScore: matchAwayScore,
+          homePenalties: null,
+          awayPenalties: null,
+          scheduledAt: new Date(event.date),
+          venue: venue ?? matchToUpdate.venue,
+          round,
+        },
+      })
+      eventsMatched++
       matchesUpdated++
 
       // Auto-award points for finished matches
-      if (newStatus === MatchStatus.FINISHED && goals.home !== null && goals.away !== null) {
-        const pts = await awardMatchPoints(match.id, homeTeam?.id ?? null, awayTeam?.id ?? null, goals.home, goals.away)
+      if (newStatus === MatchStatus.FINISHED && matchHomeScore !== null && matchAwayScore !== null) {
+        const pts = await awardMatchPoints(match.id, match.homeTeamId, match.awayTeamId, matchHomeScore, matchAwayScore)
         pointsAwarded += pts
       }
     }
@@ -331,12 +326,12 @@ export async function POST() {
       ok: true,
       matchesUpdated,
       pointsAwarded,
-      fixturesSeen: uniqueFixtures.length,
-      fixturesMatched,
-      fixturesSkipped,
+      fixturesSeen: uniqueEvents.length,
+      fixturesMatched: eventsMatched,
+      fixturesSkipped: eventsSkipped,
       dates: syncDates,
       timezone: APP_TIME_ZONE,
-      mode: syncMode,
+      mode: 'espn-scoreboard',
     })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })

@@ -166,7 +166,7 @@ export function AdminClient({ matches, teams, users, stats, tournament }: any) {
             <div>
               <p className="text-sm font-semibold text-white">Sincronizar con API-Football</p>
               <p className="text-xs text-slate-500 mt-0.5">
-                Actualiza resultados alrededor de hoy en horario Madrid. Requiere <code className="text-slate-400 bg-slate-800 px-1 rounded">API_FOOTBALL_KEY</code> en el entorno.
+                Actualiza resultados desde ESPN Scoreboard en horario Madrid. No requiere API key.
               </p>
             </div>
             <button onClick={triggerSync} disabled={syncing} className="btn-secondary flex items-center gap-2 flex-shrink-0 disabled:opacity-50">
