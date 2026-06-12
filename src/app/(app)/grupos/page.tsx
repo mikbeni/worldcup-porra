@@ -15,7 +15,7 @@ export default async function GroupsPage() {
   const matches = await prisma.match.findMany({
     where: { tournamentId: tournament.id, round: 'GROUP' },
     include: { homeTeam: true, awayTeam: true },
-    orderBy: { scheduledAt: 'asc' },
+    orderBy: [{ matchNumber: 'asc' }, { scheduledAt: 'asc' }],
   })
 
   // Build group table data

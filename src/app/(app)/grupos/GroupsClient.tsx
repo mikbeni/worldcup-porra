@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatAppShortDateTime } from '@/lib/date'
 
 const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L']
 
@@ -180,7 +179,7 @@ function MatchRow({ match }: { match: any }) {
         ) : finished ? (
           <span>Finalizado</span>
         ) : (
-          <span>{format(new Date(match.scheduledAt), 'dd MMM  HH:mm', { locale: es })}</span>
+          <span>{formatAppShortDateTime(match.scheduledAt)}</span>
         )}
       </div>
 

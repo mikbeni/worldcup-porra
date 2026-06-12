@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { MatchRound, MatchStatus } from '@prisma/client'
 import { calculatePoints, type ScoringReason } from '@/lib/scoring'
+import { APP_TIME_ZONE, appDateKey } from '@/lib/date'
 
 export const dynamic = 'force-dynamic'
 
@@ -53,6 +54,7 @@ const API_TEAM_CODE_ALIASES: Record<string, string> = {
   curaçao: 'CUW',
   'ivory coast': 'CIV',
   'cote divoire': 'CIV',
+  'cote d ivoire': 'CIV',
   "cote d'ivoire": 'CIV',
   'côte divoire': 'CIV',
   "côte d'ivoire": 'CIV',
@@ -67,10 +69,12 @@ const API_TEAM_CODE_ALIASES: Record<string, string> = {
   belgium: 'BEL',
   egypt: 'EGY',
   iran: 'IRN',
+  'ir iran': 'IRN',
   'new zealand': 'NZL',
   // Group H
   spain: 'ESP',
   'cape verde': 'CPV',
+  'cabo verde': 'CPV',
   'saudi arabia': 'KSA',
   uruguay: 'URU',
   // Group I
@@ -137,6 +141,25 @@ function mapRound(round: string): MatchRound {
   return MatchRound.GROUP
 }
 
+function addDays(date: Date, days: number) {
+  const copy = new Date(date)
+  copy.setUTCDate(copy.getUTCDate() + days)
+  return copy
+}
+
+function getSyncDates() {
+  const now = new Date()
+  const dates = new Set<string>()
+
+  for (const offset of [-1, 0, 1]) {
+    const shifted = addDays(now, offset)
+    dates.add(shifted.toISOString().slice(0, 10))
+    dates.add(appDateKey(shifted))
+  }
+
+  return [...dates].sort()
+}
+
 async function awardMatchPoints(matchId: string, homeTeamId: string | null, awayTeamId: string | null, homeScore: number, awayScore: number) {
   const homeWin = homeScore > awayScore
   const awayWin = awayScore > homeScore
@@ -186,17 +209,32 @@ export async function POST() {
   if (!tournament) return NextResponse.json({ error: 'No hay torneo activo' }, { status: 404 })
 
   try {
-    const today = new Date().toISOString().split('T')[0]
-    const res = await fetch(`${BASE}/fixtures?league=${LEAGUE_ID}&season=${SEASON}&date=${today}`, {
-      headers: { 'x-apisports-key': apiKey },
-    })
-    const data = await res.json()
-    const fixtures = data.response ?? []
+    const syncDates = getSyncDates()
+    const fixtures: any[] = []
+
+    for (const date of syncDates) {
+      const params = new URLSearchParams({
+        league: String(LEAGUE_ID),
+        season: String(SEASON),
+        date,
+        timezone: APP_TIME_ZONE,
+      })
+      const res = await fetch(`${BASE}/fixtures?${params.toString()}`, {
+        headers: { 'x-apisports-key': apiKey },
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data?.message || data?.errors?.requests || `API-Football respondió ${res.status}`)
+      }
+      fixtures.push(...(data.response ?? []))
+    }
+
+    const uniqueFixtures = [...new Map(fixtures.map((fixture) => [fixture.fixture.id, fixture])).values()]
 
     let matchesUpdated = 0
     let pointsAwarded = 0
 
-    for (const fixture of fixtures) {
+    for (const fixture of uniqueFixtures) {
       const { fixture: f, teams, goals, score, league } = fixture
 
       const homeTeam = await findTeamFromApiName(teams.home.name, tournament.id)
@@ -216,10 +254,12 @@ export async function POST() {
             },
           })
         : null
+      const existingByApiId = await prisma.match.findUnique({ where: { id: `apif-${f.id}` } })
+      const matchToUpdate = existingByApiId ?? existingMatch
 
-      const match = existingMatch
+      const match = matchToUpdate
         ? await prisma.match.update({
-          where: { id: existingMatch.id },
+          where: { id: matchToUpdate.id },
           data: {
             status: newStatus,
             homeScore: goals.home,
@@ -227,7 +267,7 @@ export async function POST() {
             homePenalties: score?.penalty?.home ?? null,
             awayPenalties: score?.penalty?.away ?? null,
             scheduledAt: new Date(f.date),
-            venue: f.venue?.name ?? existingMatch.venue,
+            venue: f.venue?.name ?? matchToUpdate.venue,
           },
         })
         : await prisma.match.upsert({
@@ -265,7 +305,14 @@ export async function POST() {
       }
     }
 
-    return NextResponse.json({ ok: true, matchesUpdated, pointsAwarded, date: today })
+    return NextResponse.json({
+      ok: true,
+      matchesUpdated,
+      pointsAwarded,
+      fixturesSeen: uniqueFixtures.length,
+      dates: syncDates,
+      timezone: APP_TIME_ZONE,
+    })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })
   }

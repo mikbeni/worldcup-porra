@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { format, formatDistanceToNow } from 'date-fns'
+import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { formatAppLongDateTime, formatAppNumericDateTime } from '@/lib/date'
 
 const TIER_COLORS: Record<number, string> = {
   1: 'tier-badge-1',
@@ -113,7 +114,7 @@ export function DashboardClient({ data, userId }: { data: any; userId: string })
               <span className="text-2xl">{nextMatch.awayTeam?.flagEmoji ?? ''}</span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              {format(new Date(nextMatch.scheduledAt), "EEEE d 'de' MMMM  HH:mm", { locale: es })}
+              {formatAppLongDateTime(nextMatch.scheduledAt)}
             </p>
           </div>
           <div className="text-right">
@@ -302,7 +303,7 @@ function MatchRow({ match }: { match: any }) {
             <span className="text-xs font-bold text-green-400 animate-pulse">EN VIVO</span>
           ) : (
             <span className="text-xs text-slate-500">
-              {format(new Date(match.scheduledAt), 'dd/MM HH:mm')}
+              {formatAppNumericDateTime(match.scheduledAt)}
             </span>
           )}
         </div>

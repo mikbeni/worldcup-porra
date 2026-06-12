@@ -18,7 +18,7 @@ export async function GET(request: Request) {
       homeTeam: true,
       awayTeam: true,
     },
-    orderBy: { scheduledAt: 'asc' },
+    orderBy: [{ matchNumber: 'asc' }, { scheduledAt: 'asc' }],
   })
 
   return NextResponse.json({ matches })

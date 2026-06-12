@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { formatAppDay, formatAppTime } from '@/lib/date'
 
 const ROUND_LABELS: Record<string, string> = {
   GROUP: 'Grupos',
@@ -29,7 +28,7 @@ export function MatchesClient({ matches }: { matches: any[] }) {
   // Group by date
   const grouped: Record<string, typeof matches> = {}
   for (const m of filtered) {
-    const key = format(new Date(m.scheduledAt), 'eeee, d MMMM yyyy', { locale: es })
+    const key = formatAppDay(m.scheduledAt)
     if (!grouped[key]) grouped[key] = []
     grouped[key].push(m)
   }
@@ -106,7 +105,7 @@ function MatchCard({ match }: { match: any }) {
               ? ' En vivo'
               : finished
               ? 'Finalizado'
-              : format(new Date(match.scheduledAt), 'HH:mm')}
+              : formatAppTime(match.scheduledAt)}
           </span>
         </div>
 

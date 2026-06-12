@@ -31,7 +31,7 @@ export function AdminClient({ matches, teams, users, stats, tournament }: any) {
     const res = await fetch('/api/admin/sync', { method: 'POST' })
     const d = await res.json()
     setMsg(res.ok
-      ? ` Sync completado  ${d.matchesUpdated} partidos actualizados (${d.date})`
+      ? ` Sync completado: ${d.matchesUpdated} partidos actualizados, ${d.fixturesSeen ?? 0} fixtures encontrados (${(d.dates ?? []).join(', ')})`
       : ` ${d.error}`)
     setSyncing(false)
   }
@@ -166,7 +166,7 @@ export function AdminClient({ matches, teams, users, stats, tournament }: any) {
             <div>
               <p className="text-sm font-semibold text-white">Sincronizar con API-Football</p>
               <p className="text-xs text-slate-500 mt-0.5">
-                Actualiza partidos de hoy. Requiere <code className="text-slate-400 bg-slate-800 px-1 rounded">API_FOOTBALL_KEY</code> en el entorno.
+                Actualiza resultados alrededor de hoy en horario Madrid. Requiere <code className="text-slate-400 bg-slate-800 px-1 rounded">API_FOOTBALL_KEY</code> en el entorno.
               </p>
             </div>
             <button onClick={triggerSync} disabled={syncing} className="btn-secondary flex items-center gap-2 flex-shrink-0 disabled:opacity-50">
